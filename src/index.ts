@@ -10,3 +10,4 @@ const fileString = fs.readFileSync(fileName).toString();
 
 const lexer = new Lexer(fileString);
 console.log(lexer.lexAnalysis());
+
