@@ -12,6 +12,8 @@ export const TokenTypes = {
   NUMBER: new TokenType("NUMBER", /^[0-9]+/), // Число
   DO: new TokenType("DO", /^do/), // Токен для ключевого слова do
   WHILE: new TokenType("WHILE", /^while/), // Токен для ключевого слова while
+  TRUE: new TokenType("TRUE", /^true/),
+  FALSE: new TokenType("FALSE", /^false/),
   INCLUDE: new TokenType("INCLUDE", /^#include\s*<\w+>/), // Директива Include
   MAIN: new TokenType("MAIN", /^int\s*main\s*\(\s*\)/), // функция MAIN
   COMMENT: new TokenType("COMMENT", /^\/\/.+/), // комментарии
@@ -34,8 +36,13 @@ export const TokenTypes = {
   CLOSEPAREN: new TokenType("CLOSEPAREN", /^\)/), // Токен для закрывающей круглой скобки
   OPENBRACE: new TokenType("OPENBRACE", /^\{/), // Токен для открывающей фигурной скобки
   CLOSEBRACE: new TokenType("CLOSEBRACE", /^\}/), // Токен для закрывающей фигурной скобки
+  COMPLUS: new TokenType("COMPLUS", /^\+=/),
+  COMMINUS: new TokenType("COMMINUS", /^\-=/),
+  COMDIV: new TokenType("COMDIV", /^\/=/),
+  COMMULT: new TokenType("COMMULT", /^\*=/),
+  COMREM: new TokenType("COMREM", /^\%=/),
   PLUS: new TokenType("PLUS", /^\+/), // Токен для плюса
-  MINUS: new TokenType("CLOSEBMINUSRACE", /^\-/), // Токен для минуса
+  MINUS: new TokenType("MINUS", /^\-/), // Токен для минуса
   DIV: new TokenType("DIV", /^\//), // Токен для деления
   MULTIPLY: new TokenType("MULTIPLY", /^\*/), // Токен умножения
   REMAINDER: new TokenType("REMAINDER", /^\%/), // Токен для деления с остатком
