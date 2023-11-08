@@ -1,11 +1,12 @@
 import Token from "./Token";
-import TokenType, { TokenTypes } from "./TokenType";
+import TokenType, { TokenTypes as TT } from "./TokenType";
 import BinOperationNode from "./ast/BinOperationNode";
 import BoolNode from "./ast/BoolNode";
 import DeclarationNode from "./ast/DeclarationNode";
 import ExpressionNode from "./ast/ExpressionNode";
 import LoopNode from "./ast/LoopNode";
 import NumberNode from "./ast/NumberNode";
+import ParenNode from "./ast/ParenNode";
 import StatementsNode from "./ast/StatementsNode";
 import UnarOperationNode from "./ast/UnarOperationNode";
 import VariableNode from "./ast/VariableNode";
@@ -39,17 +40,17 @@ export default class Parser {
   }
 
   parseVariableOrNumberOrBool(): ExpressionNode {
-    const bool = this.match(TokenTypes.TRUE, TokenTypes.FALSE);
+    const bool = this.match(TT.TRUE, TT.FALSE);
     if (bool != null) {
       return new BoolNode(bool);
     }
-    const number = this.match(TokenTypes.NUMBER);
+    const number = this.match(TT.NUMBER);
     if (number != null) {
       return new NumberNode(number);
     }
-    const variable = this.match(TokenTypes.IDENTIFIER);
+    const variable = this.match(TT.IDENTIFIER);
     if (variable != null) {
-      let operator = this.match(TokenTypes.INCREMENT);
+      let operator = this.match(TT.INCREMENT);
       if (operator != null) {
         return new UnarOperationNode(operator, new VariableNode(variable));
       }
@@ -58,68 +59,76 @@ export default class Parser {
     throw new Error(`Ожидается переменная или число на ${this.pos} позиции`);
   }
 
-  parsePerentheses(): ExpressionNode {
-    if (this.match(TokenTypes.OPENPAREN) != null) {
-      const node = this.parseFormula();
-      this.require(TokenTypes.CLOSEPAREN);
-      return node;
-    } else {
-      return this.parseVariableOrNumberOrBool();
+  expr(): ExpressionNode {
+    return this.secondPriorityOpParse();
+  }
+
+  secondPriorityOpParse() {
+    let factor = this.firstPriorityOpParse();
+    while (true) {
+      const operator = this.match(
+        TT.PLUS,
+        TT.MINUS,
+        TT.EQUAL,
+        TT.NOTEQUAL,
+        TT.LESSTHANOREQUAL,
+        TT.GREATERTHAN,
+        TT.GREATERTHANOREQUAL,
+        TT.LESSTHAN
+      );
+
+      if (operator) {
+        factor = new BinOperationNode(
+          operator,
+          factor,
+          this.firstPriorityOpParse()
+        );
+      } else {
+        return factor;
+      }
     }
   }
 
-  parseFormula(): ExpressionNode {
-    let leftNode = this.parsePerentheses();
-    let operator = this.match(
-      TokenTypes.PLUS,
-      TokenTypes.MINUS,
-      TokenTypes.MULTIPLY,
-      TokenTypes.DIV,
-      TokenTypes.REMAINDER,
-      TokenTypes.EQUAL,
-      TokenTypes.NOTEQUAL,
-      TokenTypes.LESSTHANOREQUAL,
-      TokenTypes.GREATERTHAN,
-      TokenTypes.GREATERTHANOREQUAL,
-      TokenTypes.LESSTHAN
-    );
-    while (operator != null) {
-      const rightNode = this.parsePerentheses();
-      leftNode = new BinOperationNode(operator, leftNode, rightNode);
-      operator = this.match(
-        TokenTypes.PLUS,
-        TokenTypes.MINUS,
-        TokenTypes.MULTIPLY,
-        TokenTypes.DIV,
-        TokenTypes.REMAINDER,
-        TokenTypes.EQUAL,
-        TokenTypes.NOTEQUAL,
-        TokenTypes.LESSTHANOREQUAL,
-        TokenTypes.GREATERTHAN,
-        TokenTypes.GREATERTHANOREQUAL,
-        TokenTypes.LESSTHAN
-      );
+  firstPriorityOpParse() {
+    let factor = this.parseFactor();
+    while (true) {
+      const operator = this.match(TT.MULTIPLY, TT.DIV, TT.REMAINDER);
+
+      if (operator) {
+        factor = new BinOperationNode(operator, factor, this.parseFactor());
+      } else {
+        return factor;
+      }
     }
-    return leftNode;
+  }
+
+  parseFactor(): ExpressionNode {
+    if (this.match(TT.OPENPAREN)) {
+      const node = this.expr();
+      this.require(TT.CLOSEPAREN);
+      return new ParenNode(node);
+    }
+    const factor = this.parseVariableOrNumberOrBool();
+    return factor;
   }
 
   parseExpression(): ExpressionNode {
     // Чекаем различные варианты начала строк и вызываем нужную функцию для их парсинга
     // Здесь обрабатываем выражение объеявления переменной
-    if (this.match(TokenTypes.DECLARATION)) {
+    if (this.match(TT.DECLARATION)) {
       // Парсим число после int
       let variableNode = this.parseVariableOrNumberOrBool();
       // Чекаем нашелся ли идентификатор и явялется ли он соло переменной, а не числом
       if (variableNode != null && variableNode instanceof VariableNode) {
         // Если всё ок проверяем есть ли оператор инициализации
-        const assignOperator = this.match(TokenTypes.ASSIGNMENT);
+        const assignOperator = this.match(TT.ASSIGNMENT);
         // Если есть оператор инциализации
         if (assignOperator != null) {
           // Если у нас случай когда мы инициализируем не выражением, а одной переменной или числомЁ
           if (
-            this.tokens[this.pos + 1].type.name == TokenTypes.SEMICOLON.name ||
-            (this.tokens[this.pos + 1].type.name == TokenTypes.INCREMENT.name &&
-              this.tokens[this.pos + 2].type.name == TokenTypes.SEMICOLON.name)
+            this.tokens[this.pos + 1].type.name == TT.SEMICOLON.name ||
+            (this.tokens[this.pos + 1].type.name == TT.INCREMENT.name &&
+              this.tokens[this.pos + 2].type.name == TT.SEMICOLON.name)
           ) {
             return new DeclarationNode(
               variableNode,
@@ -127,7 +136,7 @@ export default class Parser {
             );
           }
           // Делаем все тоже самое разбирая выражение инициализации рекурсивно
-          const rightFormulaNode = this.parseFormula();
+          const rightFormulaNode = this.expr();
           const binaryNode = new BinOperationNode(
             assignOperator,
             variableNode,
@@ -145,52 +154,45 @@ export default class Parser {
       }
     }
     // Здесь обрабатываем выражение цикла
-    if (this.match(TokenTypes.DO)) {
+    if (this.match(TT.DO)) {
       // После ключевого слова DO обязательно идет открывающая скобка.
-      this.require(TokenTypes.OPENBRACE);
+      this.require(TT.OPENBRACE);
       // Создаем ноду цикла
       const loopNode = new LoopNode();
       // Запускаем цикл для парсинга выражений внутри тела цикла
       while (
-        this.tokens[this.pos].type.name != TokenTypes.CLOSEBRACE.name &&
+        this.tokens[this.pos].type.name != TT.CLOSEBRACE.name &&
         this.pos < this.tokens.length
       ) {
         // FIXME: здесь можно будет чекать на while путем прохода до ключевого слова while и чек предыдущий токен
         const bodyStringNode = this.parseExpression();
         // Требуем точку с запятой  после строки
-        this.require(TokenTypes.SEMICOLON);
+        this.require(TT.SEMICOLON);
         loopNode.addNode(bodyStringNode);
       }
-      this.require(TokenTypes.CLOSEBRACE);
-      this.require(TokenTypes.WHILE);
-      this.require(TokenTypes.OPENPAREN);
+      this.require(TT.CLOSEBRACE);
+      this.require(TT.WHILE);
+      this.require(TT.OPENPAREN);
       // Парсим условие по схеме с оператором присваивания
-      if (
-        this.match(
-          TokenTypes.IDENTIFIER,
-          TokenTypes.NUMBER,
-          TokenTypes.TRUE,
-          TokenTypes.FALSE
-        )
-      ) {
+      if (this.match(TT.IDENTIFIER, TT.NUMBER, TT.TRUE, TT.FALSE)) {
         this.pos -= 1;
         let variableNode = this.parseVariableOrNumberOrBool();
 
         const operator = this.match(
-          TokenTypes.EQUAL,
-          TokenTypes.NOTEQUAL,
-          TokenTypes.LESSTHANOREQUAL,
-          TokenTypes.GREATERTHAN,
-          TokenTypes.GREATERTHANOREQUAL,
-          TokenTypes.LESSTHAN,
-          TokenTypes.PLUS,
-          TokenTypes.MINUS,
-          TokenTypes.MULTIPLY,
-          TokenTypes.DIV,
-          TokenTypes.REMAINDER
+          TT.EQUAL,
+          TT.NOTEQUAL,
+          TT.LESSTHANOREQUAL,
+          TT.GREATERTHAN,
+          TT.GREATERTHANOREQUAL,
+          TT.LESSTHAN,
+          TT.PLUS,
+          TT.MINUS,
+          TT.MULTIPLY,
+          TT.DIV,
+          TT.REMAINDER
         );
         if (operator != null) {
-          const rightFormulaNode = this.parseFormula();
+          const rightFormulaNode = this.expr();
           const binaryNode = new BinOperationNode(
             operator,
             variableNode,
@@ -204,28 +206,28 @@ export default class Parser {
         throw new Error(`Условие не должно быть пустым на ${this.pos}`);
       }
 
-      this.require(TokenTypes.CLOSEPAREN);
+      this.require(TT.CLOSEPAREN);
       return loopNode;
     }
     // Здесь обрабатываем выражение присваивания или инкремента
-    if (this.match(TokenTypes.IDENTIFIER)) {
+    if (this.match(TT.IDENTIFIER)) {
       this.pos -= 1;
       let variableNode = this.parseVariableOrNumberOrBool();
       // Проверяем есть ли оператор присвоения после переменной или составной оператор
       const assignOperator = this.match(
-        TokenTypes.ASSIGNMENT,
-        TokenTypes.COMMINUS,
-        TokenTypes.COMMULT,
-        TokenTypes.COMPLUS,
-        TokenTypes.COMDIV,
-        TokenTypes.COMREM
+        TT.ASSIGNMENT,
+        TT.COMMINUS,
+        TT.COMMULT,
+        TT.COMPLUS,
+        TT.COMDIV,
+        TT.COMREM
       );
 
       if (assignOperator != null) {
         if (variableNode instanceof UnarOperationNode) {
           throw new Error(`Неправильное выражение на ${this.pos}`);
         }
-        const rightFormulaNode = this.parseFormula();
+        const rightFormulaNode = this.expr();
         const binaryNode = new BinOperationNode(
           assignOperator,
           variableNode,
@@ -241,11 +243,6 @@ export default class Parser {
         throw new Error(`Ожидается оператор на ${this.pos} позиции`);
       }
     }
-    console.log(
-      this.tokens[this.pos],
-      this.tokens[this.pos - 1],
-      this.tokens[this.pos - 2]
-    );
     throw new Error(`Недопустимое выражение на ${this.pos}`);
   }
 
@@ -256,7 +253,7 @@ export default class Parser {
       // Парсим строчку кода
       const codeStringNode = this.parseExpression();
       // Требуем точку с запятой  после строки
-      this.require(TokenTypes.SEMICOLON);
+      this.require(TT.SEMICOLON);
       root.addNode(codeStringNode);
     }
     return root;
