@@ -1,11 +1,11 @@
 import Token from "../Token";
-import ExpressionNode from "./ExpressionNode";
+import ExpressionNode, { NodeTypes } from "./ExpressionNode";
 
 export default class NumberNode extends ExpressionNode {
   number: Token;
 
   constructor(number: Token) {
-    super();
+    super(NodeTypes.NUMBER);
     this.number = number;
   }
 }

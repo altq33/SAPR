@@ -2,12 +2,12 @@
   "name": "saprts",
   "version": "1.0.0",
   "description": "",
+  "author": "Dmitry Chankov",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "ts-node src/index"
   },
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "readline-sync": "^1.4.10",

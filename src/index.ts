@@ -2,22 +2,32 @@ import fs from "fs";
 import readlineSync from "readline-sync";
 import Lexer from "./Lexer";
 import Parser from "./Parser";
-import util from "util";
+import { isNativeError } from "util/types";
+import { WrongFilenameError } from "./errors";
 
 // const fileName =
 //   "assets/inputs/" + readlineSync.question("Enter filename: ") + ".cpp";
 const fileName = "assets/inputs/test.cpp";
+let fileString;
 
-const fileString = fs.readFileSync(fileName).toString();
+try {
+  fileString = fs.readFileSync(fileName).toString();
+} catch {
+  throw new WrongFilenameError("Неправильный путь до файла");
+}
 
 const lexer = new Lexer(fileString);
+const tokenList = lexer.lexAnalysis();
+const parser = new Parser(tokenList);
+const AST = parser.parseCode();
 
-const parser = new Parser(lexer.lexAnalysis());
+try {
+  fs.writeFileSync(
+    "assets/outputs/tokens.json",
+    JSON.stringify(tokenList, null, 2)
+  );
 
-console.log(
-  util.inspect(parser.parseCode(), {
-    showHidden: false,
-    depth: null,
-    colors: true,
-  })
-);
+  fs.writeFileSync("assets/outputs/ast.json", JSON.stringify(AST, null, 2));
+} catch {
+  throw new WrongFilenameError("Неправильный путь до файла");
+}

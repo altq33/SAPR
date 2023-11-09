@@ -1,12 +1,11 @@
 import Token from "../Token";
-import ExpressionNode from "./ExpressionNode";
+import ExpressionNode, { NodeTypes } from "./ExpressionNode";
 
 export default class VariableNode extends ExpressionNode {
   variable: Token;
 
   constructor(variable: Token) {
-    super();
+    super(NodeTypes.VARIABLE);
     this.variable = variable;
   }
-  
 }

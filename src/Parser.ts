@@ -1,19 +1,21 @@
 import Token from "./Token";
 import TokenType, { TokenTypes as TT } from "./TokenType";
-import BinOperationNode from "./ast/BinOperationNode";
-import BoolNode from "./ast/BoolNode";
-import DeclarationNode from "./ast/DeclarationNode";
-import ExpressionNode from "./ast/ExpressionNode";
-import LoopNode from "./ast/LoopNode";
-import NumberNode from "./ast/NumberNode";
-import ParenNode from "./ast/ParenNode";
-import StatementsNode from "./ast/StatementsNode";
-import UnarOperationNode from "./ast/UnarOperationNode";
-import VariableNode from "./ast/VariableNode";
+import BinOperationNode from "./astNodes/BinOperationNode";
+import BoolNode from "./astNodes/BoolNode";
+import DeclarationNode from "./astNodes/DeclarationNode";
+import ExpressionNode from "./astNodes/ExpressionNode";
+import FunctionNode from "./astNodes/FunctionNode";
+import LoopNode from "./astNodes/LoopNode";
+import NumberNode from "./astNodes/NumberNode";
+import ParenNode from "./astNodes/ParenNode";
+import ProgramNode from "./astNodes/ProgramNode";
+import UnarOperationNode from "./astNodes/UnarOperationNode";
+import VariableNode from "./astNodes/VariableNode";
+import { SyntacticAnalysisError } from "./errors";
 
 export default class Parser {
   tokens: Token[];
-  pos: number = 1;
+  pos: number = 0;
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -34,7 +36,10 @@ export default class Parser {
   require(...expected: TokenType[]): Token {
     const token = this.match(...expected);
     if (!token) {
-      throw new Error(`На позиции ${this.pos} ожидается ${expected[0].name}`);
+      throw new SyntacticAnalysisError(
+        `Ожидалось ${expected[0].name}`,
+        this.pos
+      );
     }
     return token;
   }
@@ -44,19 +49,41 @@ export default class Parser {
     if (bool != null) {
       return new BoolNode(bool);
     }
+    const unaryMinus = this.match(TT.MINUS);
+
     const number = this.match(TT.NUMBER);
+
     if (number != null) {
-      return new NumberNode(number);
-    }
-    const variable = this.match(TT.IDENTIFIER);
-    if (variable != null) {
-      let operator = this.match(TT.INCREMENT);
-      if (operator != null) {
-        return new UnarOperationNode(operator, new VariableNode(variable));
+      const numberNode = new NumberNode(number);
+      if (unaryMinus != null) {
+        return new UnarOperationNode(unaryMinus, numberNode);
       }
-      return new VariableNode(variable);
+      return numberNode;
     }
-    throw new Error(`Ожидается переменная или число на ${this.pos} позиции`);
+
+    const variable = this.match(TT.IDENTIFIER);
+
+    if (variable != null) {
+      let variableNode: VariableNode | UnarOperationNode = new VariableNode(
+        variable
+      );
+
+      let incOperator = this.match(TT.INCREMENT);
+
+      if (incOperator != null) {
+        variableNode = new UnarOperationNode(incOperator, variableNode);
+      }
+
+      if (unaryMinus != null) {
+        return new UnarOperationNode(unaryMinus, variableNode);
+      }
+
+      return variableNode;
+    }
+    throw new SyntacticAnalysisError(
+      `Ожидалась переменная или число`,
+      this.pos
+    );
   }
 
   expr(): ExpressionNode {
@@ -115,6 +142,7 @@ export default class Parser {
   parseExpression(): ExpressionNode {
     // Чекаем различные варианты начала строк и вызываем нужную функцию для их парсинга
     // Здесь обрабатываем выражение объеявления переменной
+
     if (this.match(TT.DECLARATION)) {
       // Парсим число после int
       let variableNode = this.parseVariableOrNumberOrBool();
@@ -124,33 +152,14 @@ export default class Parser {
         const assignOperator = this.match(TT.ASSIGNMENT);
         // Если есть оператор инциализации
         if (assignOperator != null) {
-          // Если у нас случай когда мы инициализируем не выражением, а одной переменной или числомЁ
-          if (
-            this.tokens[this.pos + 1].type.name == TT.SEMICOLON.name ||
-            (this.tokens[this.pos + 1].type.name == TT.INCREMENT.name &&
-              this.tokens[this.pos + 2].type.name == TT.SEMICOLON.name)
-          ) {
-            return new DeclarationNode(
-              variableNode,
-              this.parseVariableOrNumberOrBool()
-            );
-          }
-          // Делаем все тоже самое разбирая выражение инициализации рекурсивно
-          const rightFormulaNode = this.expr();
-          const binaryNode = new BinOperationNode(
-            assignOperator,
-            variableNode,
-            rightFormulaNode
-          );
-          // Возвращаем байнари ноду инициализации
-          return new DeclarationNode(variableNode, binaryNode);
+          return new DeclarationNode(variableNode, this.expr());
         } else {
           // Иначе если оператора нет возвращаем ноду объявления переменной с нулом вторым параеметром
           return new DeclarationNode(variableNode, null);
         }
       } else {
         // Если у нас после ключевого слова объявления нет переменной или она с инкрементом, то дропаем ошибку
-        throw new Error(`Неправильное выражение на ${this.pos}`);
+        throw new SyntacticAnalysisError(`Неправильное выражение`, this.pos);
       }
     }
     // Здесь обрабатываем выражение цикла
@@ -164,7 +173,6 @@ export default class Parser {
         this.tokens[this.pos].type.name != TT.CLOSEBRACE.name &&
         this.pos < this.tokens.length
       ) {
-        // FIXME: здесь можно будет чекать на while путем прохода до ключевого слова while и чек предыдущий токен
         const bodyStringNode = this.parseExpression();
         // Требуем точку с запятой  после строки
         this.require(TT.SEMICOLON);
@@ -203,7 +211,10 @@ export default class Parser {
           loopNode.condition = variableNode;
         }
       } else {
-        throw new Error(`Условие не должно быть пустым на ${this.pos}`);
+        throw new SyntacticAnalysisError(
+          `Условие не должно быть пустым`,
+          this.pos
+        );
       }
 
       this.require(TT.CLOSEPAREN);
@@ -225,7 +236,7 @@ export default class Parser {
 
       if (assignOperator != null) {
         if (variableNode instanceof UnarOperationNode) {
-          throw new Error(`Неправильное выражение на ${this.pos}`);
+          throw new SyntacticAnalysisError(`Неправильное выражение`, this.pos);
         }
         const rightFormulaNode = this.expr();
         const binaryNode = new BinOperationNode(
@@ -240,22 +251,28 @@ export default class Parser {
         if (variableNode instanceof UnarOperationNode) {
           return variableNode;
         }
-        throw new Error(`Ожидается оператор на ${this.pos} позиции`);
+        throw new SyntacticAnalysisError(`Ожидался оператор`, this.pos);
       }
     }
-    throw new Error(`Недопустимое выражение на ${this.pos}`);
+    throw new SyntacticAnalysisError(`Недопустимое выражение`, this.pos);
   }
 
   parseCode(): ExpressionNode {
     // Создаем корень дерева
-    const root = new StatementsNode();
+    const root = new ProgramNode();
+    this.require(TT.MAIN);
+    this.require(TT.OPENBRACE);
+    const main = new FunctionNode(TT.MAIN.name);
+
     while (this.pos < this.tokens.length - 1) {
       // Парсим строчку кода
       const codeStringNode = this.parseExpression();
       // Требуем точку с запятой  после строки
       this.require(TT.SEMICOLON);
-      root.addNode(codeStringNode);
+      main.addNode(codeStringNode);
     }
+    this.require(TT.CLOSEBRACE);
+    root.addNode(main);
     return root;
   }
 }

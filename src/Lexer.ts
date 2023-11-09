@@ -1,5 +1,6 @@
 import Token from "./Token";
 import { TokenTypes } from "./TokenType";
+import { LexicalAnalysisError } from "./errors";
 
 export default class Lexer {
   code: string;
@@ -18,7 +19,6 @@ export default class Lexer {
         value.type.name !== TokenTypes.TAB.name &&
         value.type.name !== TokenTypes.NEWLINE.name &&
         value.type.name !== TokenTypes.CARRIAGE.name &&
-        value.type.name !== TokenTypes.MAIN.name &&
         value.type.name !== TokenTypes.INCLUDE.name &&
         value.type.name !== TokenTypes.COMMENT.name
     );
@@ -41,6 +41,6 @@ export default class Lexer {
         return true;
       }
     }
-    throw new Error(`Ошибка на ${this.pos}`);
+    throw new LexicalAnalysisError(`Ошибка лексического анализа`, this.pos);
   }
 }

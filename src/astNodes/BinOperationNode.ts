@@ -1,5 +1,5 @@
 import Token from "../Token";
-import ExpressionNode from "./ExpressionNode";
+import ExpressionNode, { NodeTypes } from "./ExpressionNode";
 
 export default class BinOperationNode extends ExpressionNode {
   operator: Token;
@@ -11,7 +11,7 @@ export default class BinOperationNode extends ExpressionNode {
     leftNode: ExpressionNode,
     rightNode: ExpressionNode
   ) {
-    super();
+    super(NodeTypes.BIN_OP);
     this.operator = operator;
     this.leftNode = leftNode;
     this.rightNode = rightNode;
