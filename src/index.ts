@@ -3,7 +3,7 @@ import readlineSync from "readline-sync";
 import Lexer from "./Lexer";
 import Parser from "./Parser";
 import { WrongFilenameError } from "./errors";
-import { Semantic } from "./Sematic";
+import { Semantic } from "./Semantic";
 
 // const fileName =
 //   "assets/inputs/" + readlineSync.question("Enter filename: ") + ".cpp";
