@@ -22,6 +22,18 @@ export class LexicalAnalysisError extends Error {
   }
 }
 
+export class SemanticAnalysisError extends Error {
+  text?: string;
+  name: string;
+  pos?: number;
+
+  constructor(text: string, pos: number) {
+    super(text);
+    this.name = "SemanticAnalysisError";
+    this.pos = pos;
+  }
+}
+
 export class WrongFilenameError extends Error {
   text?: string;
   name: string;

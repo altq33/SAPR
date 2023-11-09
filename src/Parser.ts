@@ -38,7 +38,7 @@ export default class Parser {
     if (!token) {
       throw new SyntacticAnalysisError(
         `Ожидалось ${expected[0].name}`,
-        this.pos
+        this.tokens[this.pos].pos
       );
     }
     return token;
@@ -82,7 +82,7 @@ export default class Parser {
     }
     throw new SyntacticAnalysisError(
       `Ожидалась переменная или число`,
-      this.pos
+      this.tokens[this.pos].pos
     );
   }
 
@@ -159,7 +159,10 @@ export default class Parser {
         }
       } else {
         // Если у нас после ключевого слова объявления нет переменной или она с инкрементом, то дропаем ошибку
-        throw new SyntacticAnalysisError(`Неправильное выражение`, this.pos);
+        throw new SyntacticAnalysisError(
+          `Неправильное выражение`,
+          this.tokens[this.pos].pos
+        );
       }
     }
     // Здесь обрабатываем выражение цикла
@@ -213,7 +216,7 @@ export default class Parser {
       } else {
         throw new SyntacticAnalysisError(
           `Условие не должно быть пустым`,
-          this.pos
+          this.tokens[this.pos].pos
         );
       }
 
@@ -236,7 +239,10 @@ export default class Parser {
 
       if (assignOperator != null) {
         if (variableNode instanceof UnarOperationNode) {
-          throw new SyntacticAnalysisError(`Неправильное выражение`, this.pos);
+          throw new SyntacticAnalysisError(
+            `Неправильное выражение`,
+            this.tokens[this.pos].pos
+          );
         }
         const rightFormulaNode = this.expr();
         const binaryNode = new BinOperationNode(
@@ -251,10 +257,16 @@ export default class Parser {
         if (variableNode instanceof UnarOperationNode) {
           return variableNode;
         }
-        throw new SyntacticAnalysisError(`Ожидался оператор`, this.pos);
+        throw new SyntacticAnalysisError(
+          `Ожидался оператор`,
+          this.tokens[this.pos].pos
+        );
       }
     }
-    throw new SyntacticAnalysisError(`Недопустимое выражение`, this.pos);
+    throw new SyntacticAnalysisError(
+      `Недопустимое выражение`,
+      this.tokens[this.pos].pos
+    );
   }
 
   parseCode(): ExpressionNode {

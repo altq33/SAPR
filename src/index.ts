@@ -2,8 +2,8 @@ import fs from "fs";
 import readlineSync from "readline-sync";
 import Lexer from "./Lexer";
 import Parser from "./Parser";
-import { isNativeError } from "util/types";
 import { WrongFilenameError } from "./errors";
+import { Semantic } from "./Sematic";
 
 // const fileName =
 //   "assets/inputs/" + readlineSync.question("Enter filename: ") + ".cpp";
@@ -20,6 +20,8 @@ const lexer = new Lexer(fileString);
 const tokenList = lexer.lexAnalysis();
 const parser = new Parser(tokenList);
 const AST = parser.parseCode();
+const semantic = new Semantic(tokenList);
+semantic.parseCode();
 
 try {
   fs.writeFileSync(
