@@ -51,6 +51,7 @@ export class Semantic {
         finded = true;
       }
     }
+
     return [initialized, finded];
   }
 
